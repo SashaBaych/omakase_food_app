@@ -1,10 +1,11 @@
 import SwiftUI
+import AVKit
 import UIKit
 
 struct ChatBubble: View {
     let bubbleMessage: String
     let isUser: Bool
-    
+
     var body: some View {
         HStack {
             if isUser {
@@ -32,7 +33,7 @@ struct ExpandingTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var height: CGFloat
     let maxHeight: CGFloat
-    
+
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
         textView.isScrollEnabled = true
@@ -43,7 +44,7 @@ struct ExpandingTextView: UIViewRepresentable {
         textView.delegate = context.coordinator
         return textView
     }
-    
+
     func updateUIView(_ uiView: UITextView, context: Context) {
         uiView.text = text
         DispatchQueue.main.async {
@@ -53,18 +54,18 @@ struct ExpandingTextView: UIViewRepresentable {
             }
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
-    
+
     class Coordinator: NSObject, UITextViewDelegate {
         var parent: ExpandingTextView
-        
+
         init(_ parent: ExpandingTextView) {
             self.parent = parent
         }
-        
+
         func textViewDidChange(_ textView: UITextView) {
             parent.text = textView.text
         }
@@ -77,25 +78,25 @@ struct ChatInputView: View {
     @State private var textViewHeight: CGFloat = 40
     let maxHeight: CGFloat = 300
     var onSubmit: (String) -> Void
-    
+
     var body: some View {
         ZStack {
             Color.white
                 .cornerRadius(30)
                 .shadow(radius: 5)
-            
+
             VStack {
                 ChatBubble(bubbleMessage: "So what have you got?", isUser: false)
-                
+
                 Spacer()
-                
+
                 HStack(alignment: .bottom) {
                     ExpandingTextView(text: $message, height: $textViewHeight, maxHeight: maxHeight)
                         .frame(height: textViewHeight)
                         .background(Color(.systemGray6))
                         .cornerRadius(23)
                         .padding(.leading, 16)
-                    
+
                     Button(action: {
                         onSubmit(message)
                         message = ""
@@ -117,9 +118,106 @@ struct ChatInputView: View {
     }
 }
 
-#Preview {
-    ChatInputView { message in
-        print("Message submitted: \(message)")
+
+
+struct CombinedVideoChatView: View {
+    @StateObject private var videoManager = VideoManager()
+    @State private var chatMessage: String = ""
+    
+    var body: some View {
+        ZStack {
+            Color.white.edgesIgnoringSafeArea(.all) // Background color
+            
+            VStack {
+                HStack(spacing: 20) {
+                    // Left side: Video Player
+                    VStack {
+                        Spacer()
+                        TransparentVideoPlayerView(videoManager: videoManager)
+                            .frame(width: 400, height: 400)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    // Right side: Chat
+                    VStack {
+                        Spacer()
+                        ChatInputView { message in
+                            print("Message submitted: \(message)")
+                            // Here you would typically handle sending the message
+                        }
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding()
+        }
     }
 }
 
+
+// Existing TransparentVideoPlayerView, modified to accept videoManager as a parameter
+struct TransparentVideoPlayerView: View {
+    @ObservedObject var videoManager: VideoManager
+    
+    var body: some View {
+        VideoView(player: videoManager.player)
+            .frame(width: 400, height: 400)
+            .background(Color.clear)
+            .onAppear {
+                videoManager.loadVideos()
+                videoManager.playRandomVideo()
+            }
+    }
+}
+
+
+class VideoManager: ObservableObject {
+    @Published var player = AVPlayer()
+    private var videos: [URL] = []
+    
+    func loadVideos() {
+        let bundle = Bundle.main
+        if let resources = bundle.urls(forResourcesWithExtension: "mov", subdirectory: nil) {
+            videos = resources.filter { $0.lastPathComponent.starts(with: "chef_") }
+            print("Loaded videos: \(videos)")
+        } else {
+            print("No .mov files found in the bundle")
+        }
+        
+        if videos.isEmpty {
+            print("No video files found matching the expected pattern")
+        }
+    }
+    
+    func playRandomVideo() {
+        guard !videos.isEmpty else { return }
+        let randomURL = videos.randomElement()!
+        let playerItem = AVPlayerItem(url: randomURL)
+        player.replaceCurrentItem(with: playerItem)
+        player.play()
+        
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { [weak self] _ in
+            self?.playRandomVideo()
+        }
+    }
+}
+
+struct VideoView: UIViewControllerRepresentable {
+    let player: AVPlayer
+    
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = false
+        controller.view.backgroundColor = .clear
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
+}
+
+#Preview {
+    CombinedVideoChatView()
+}
