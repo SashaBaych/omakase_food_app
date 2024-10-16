@@ -29,7 +29,7 @@ struct LLMEvalApp: App {
                                 showOutput = true
                             }
                         }
-                        .navigationTitle("Recipe Generator")
+                        .navigationTitle("Omakase Chef")
                         .transition(.opacity)
                     }
                 }

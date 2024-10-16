@@ -78,146 +78,56 @@ struct ChatInputView: View {
     @State private var textViewHeight: CGFloat = 40
     let maxHeight: CGFloat = 300
     var onSubmit: (String) -> Void
-
-    var body: some View {
-        ZStack {
-            Color.white
-                .cornerRadius(30)
-                .shadow(radius: 5)
-
-            VStack {
-                ChatBubble(bubbleMessage: "So what have you got?", isUser: false)
-
-                Spacer()
-
-                HStack(alignment: .bottom) {
-                    ExpandingTextView(text: $message, height: $textViewHeight, maxHeight: maxHeight)
-                        .frame(height: textViewHeight)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(23)
-                        .padding(.leading, 16)
-
-                    Button(action: {
-                        onSubmit(message)
-                        message = ""
-                    }) {
-                        Image(systemName: "fork.knife")
-                            .font(.system(size: 30))
-                            .foregroundColor(.orange)
-                    }
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 5)
-                }
-                .padding(.bottom, 10)
-            }
-            .padding()
-        }
-        .frame(width: 350, height: 200 + max(0, textViewHeight - 40))
-        .background(Color.clear)
-        .animation(.default, value: textViewHeight)
-    }
-}
-
-
-
-struct CombinedVideoChatView: View {
-    @StateObject private var videoManager = VideoManager()
-    @State private var chatMessage: String = ""
     
     var body: some View {
-        ZStack {
-            Color.white.edgesIgnoringSafeArea(.all) // Background color
+        HStack(spacing: 20) {
+            // Add the TransparentVideoPlayerView here
+            TransparentVideoPlayerView()
+                .frame(width: 300, height: 300)
             
-            VStack {
-                HStack(spacing: 20) {
-                    // Left side: Video Player
-                    VStack {
-                        Spacer()
-                        TransparentVideoPlayerView(videoManager: videoManager)
-                            .frame(width: 400, height: 400)
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
+            ZStack {
+                Color.white
+                    .cornerRadius(30)
+                    .shadow(radius: 5)
+                
+                VStack {
+                    ChatBubble(bubbleMessage: "So what have you got?", isUser: false)
                     
-                    // Right side: Chat
-                    VStack {
-                        Spacer()
-                        ChatInputView { message in
-                            print("Message submitted: \(message)")
-                            // Here you would typically handle sending the message
+                    Spacer()
+                    
+                    HStack(alignment: .bottom) {
+                        ExpandingTextView(text: $message, height: $textViewHeight, maxHeight: maxHeight)
+                            .frame(height: textViewHeight)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(23)
+                            .padding(.leading, 16)
+                        
+                        Button(action: {
+                            onSubmit(message)
+                            message = ""
+                        }) {
+                            Image(systemName: "fork.knife")
+                                .font(.system(size: 30))
+                                .foregroundColor(.orange)
                         }
-                        Spacer()
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 5)
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 10)
                 }
+                .padding()
             }
-            .padding()
-        }
-    }
-}
-
-
-// Existing TransparentVideoPlayerView, modified to accept videoManager as a parameter
-struct TransparentVideoPlayerView: View {
-    @ObservedObject var videoManager: VideoManager
-    
-    var body: some View {
-        VideoView(player: videoManager.player)
-            .frame(width: 400, height: 400)
+            .frame(width: 350, height: 200 + max(0, textViewHeight - 40))
             .background(Color.clear)
-            .onAppear {
-                videoManager.loadVideos()
-                videoManager.playRandomVideo()
-            }
-    }
-}
-
-
-class VideoManager: ObservableObject {
-    @Published var player = AVPlayer()
-    private var videos: [URL] = []
-    
-    func loadVideos() {
-        let bundle = Bundle.main
-        if let resources = bundle.urls(forResourcesWithExtension: "mov", subdirectory: nil) {
-            videos = resources.filter { $0.lastPathComponent.starts(with: "chef_") }
-            print("Loaded videos: \(videos)")
-        } else {
-            print("No .mov files found in the bundle")
+            .animation(.default, value: textViewHeight)
         }
-        
-        if videos.isEmpty {
-            print("No video files found matching the expected pattern")
-        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
-    
-    func playRandomVideo() {
-        guard !videos.isEmpty else { return }
-        let randomURL = videos.randomElement()!
-        let playerItem = AVPlayerItem(url: randomURL)
-        player.replaceCurrentItem(with: playerItem)
-        player.play()
-        
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem, queue: .main) { [weak self] _ in
-            self?.playRandomVideo()
-        }
-    }
-}
-
-struct VideoView: UIViewControllerRepresentable {
-    let player: AVPlayer
-    
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.showsPlaybackControls = false
-        controller.view.backgroundColor = .clear
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {}
 }
 
 #Preview {
-    CombinedVideoChatView()
+    ChatInputView { message in
+        print("Message submitted: \(message)")
+    }
 }
